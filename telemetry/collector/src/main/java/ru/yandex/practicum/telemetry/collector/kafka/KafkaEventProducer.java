@@ -39,23 +39,14 @@ public class KafkaEventProducer {
         ProducerRecord<String, SpecificRecordBase> record =
                 new ProducerRecord<>(topic, key, event);
 
-        producer.send(record, (metadata, exception) -> {
-            if (exception != null) {
-                log.error(
-                        "Failed to send event to topic={} key={}",
-                        topic,
-                        key,
-                        exception
-                );
-                return;
-            }
-
-            log.debug(
-                    "Event sent to topic={}, partition={}, offset={}",
-                    metadata.topic(),
-                    metadata.partition(),
-                    metadata.offset()
-            );
-        });
+        try {
+            // Acknowledge the RPC only after Kafka has acknowledged the event.
+            producer.send(record).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Kafka publication interrupted", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            throw new IllegalStateException("Kafka publication failed", e.getCause());
+        }
     }
 }

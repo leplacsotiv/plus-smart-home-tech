@@ -15,7 +15,7 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public KafkaProducer<String, SpecificRecordBase> kafkaProducer(
             @Value("${collector.kafka.bootstrap-servers}") String bootstrapServers
     ) {
@@ -41,6 +41,9 @@ public class KafkaProducerConfig {
                 "all"
         );
 
+        properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
+        properties.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 5000);
+        properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 10000);
         return new KafkaProducer<>(properties);
     }
 }
