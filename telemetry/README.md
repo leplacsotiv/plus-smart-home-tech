@@ -72,7 +72,7 @@ Spring initializes it idempotently and Hibernate validates it (`ddl-auto=validat
 Hub events are transactional. Repeated additions update existing objects; repeated removals are safe.
 Scenario replacement removes obsolete conditions/actions. Device references must belong to the same hub.
 Removing a device removes dependent scenarios as a whole rather than weakening their conditions.
-All conditions must match; missing or incompatible sensor readings do not match.
+All conditions must match. Missing sensor readings do not match; an incompatible payload is rejected as invalid.
 
 Connection defaults: database `telemetry_analyzer`, port `5432`, user `dbuser`, password `12345`.
 Override with `ANALYZER_DB_URL`, `ANALYZER_DB_USER`, `ANALYZER_DB_PASSWORD`.

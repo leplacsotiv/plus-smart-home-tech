@@ -1,6 +1,7 @@
 package ru.yandex.practicum.telemetry.analyzer.processing;
 
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -31,7 +32,7 @@ class KafkaEventLoopTest {
             var loop = new KafkaEventLoop<String>(config, new StringDeserializer(), value -> {
                 if (value.equals("second")) throw new IllegalStateException("downstream unavailable");
             });
-            assertThrows(IllegalStateException.class, loop::run);
+            assertDoesNotThrow(loop::run);
             var input = construction.constructed().getFirst();
             verify(input).commitSync(Map.of(partition, new OffsetAndMetadata(1)), Duration.ofSeconds(10));
             verify(input, never()).commitAsync(anyMap(), any());
@@ -46,9 +47,26 @@ class KafkaEventLoopTest {
             var loop = new KafkaEventLoop<String>(config, new StringDeserializer(), value -> {
                 throw new IllegalStateException("database unavailable");
             });
-            assertThrows(IllegalStateException.class, loop::run);
+            assertDoesNotThrow(loop::run);
             var input = construction.constructed().getFirst();
             verify(input, never()).commitSync(anyMap(), any(Duration.class));
+            verify(input).close();
+        }
+    }
+
+    @Test
+    void doesNotPropagateFinalCommitFailure() {
+        try (var construction = mockConstruction(KafkaConsumer.class, (input, context) -> {
+            when(input.poll(any(Duration.class))).thenReturn(records());
+            doThrow(new KafkaException("broker unavailable"))
+                    .when(input).commitSync(anyMap(), eq(Duration.ofSeconds(10)));
+        })) {
+            var loop = new KafkaEventLoop<String>(config, new StringDeserializer(), value -> {
+                if (value.equals("second")) throw new IllegalStateException("downstream unavailable");
+            });
+            assertDoesNotThrow(loop::run);
+            var input = construction.constructed().getFirst();
+            verify(input).commitSync(Map.of(partition, new OffsetAndMetadata(1)), Duration.ofSeconds(10));
             verify(input).close();
         }
     }

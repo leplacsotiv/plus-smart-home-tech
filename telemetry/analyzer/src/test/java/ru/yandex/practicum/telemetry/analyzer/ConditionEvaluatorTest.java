@@ -51,11 +51,19 @@ class ConditionEvaluatorTest {
     }
 
     @Test
-    void rejectsMissingStateWrongPayloadAndAbsentValue() {
+    void rejectsMissingStateAndAbsentValue() {
         var condition = condition(ConditionTypeAvro.MOTION, ConditionOperationAvro.EQUALS, 1);
         assertFalse(evaluator.matches(condition, new SensorsSnapshotAvro("hub", Instant.EPOCH, Map.of())));
-        assertFalse(evaluator.matches(condition, snapshot(new SwitchSensorAvro(true))));
         condition.setValue(null);
         assertFalse(evaluator.matches(condition, snapshot(new MotionSensorAvro(1, true, 2))));
+    }
+
+    @Test
+    void throwsForIncompatiblePayload() {
+        var condition = condition(ConditionTypeAvro.MOTION, ConditionOperationAvro.EQUALS, 1);
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> evaluator.matches(condition, snapshot(new SwitchSensorAvro(true))));
+        assertTrue(error.getMessage().contains("MOTION"));
+        assertTrue(error.getMessage().contains("SwitchSensorAvro"));
     }
 }

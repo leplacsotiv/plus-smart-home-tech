@@ -1,6 +1,5 @@
 package ru.yandex.practicum.telemetry.analyzer.service;
 
-import io.grpc.StatusRuntimeException;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,14 +21,8 @@ public class HubRouterClient {
     }
 
     public void send(DeviceActionRequest request) {
-        try {
-            stub.withDeadlineAfter(config.actionTimeout().toMillis(), TimeUnit.MILLISECONDS).handleDeviceAction(request);
-            log.debug("Action acknowledged: hub={}, scenario={}, sensor={}",
-                    request.getHubId(), request.getScenarioName(), request.getAction().getSensorId());
-        } catch (StatusRuntimeException e) {
-            log.error("Action failed: hub={}, scenario={}, sensor={}, status={}", request.getHubId(),
-                    request.getScenarioName(), request.getAction().getSensorId(), e.getStatus());
-            throw e;
-        }
+        stub.withDeadlineAfter(config.actionTimeout().toMillis(), TimeUnit.MILLISECONDS).handleDeviceAction(request);
+        log.debug("Action acknowledged: hub={}, scenario={}, sensor={}",
+                request.getHubId(), request.getScenarioName(), request.getAction().getSensorId());
     }
 }

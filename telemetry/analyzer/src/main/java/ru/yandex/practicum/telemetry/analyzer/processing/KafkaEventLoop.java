@@ -61,11 +61,16 @@ final class KafkaEventLoop<T> implements Runnable {
             } catch (WakeupException e) {
                 if (running.get()) throw e;
             } finally {
-                if (!offsets.isEmpty()) input.commitSync(offsets, Duration.ofSeconds(10));
+                if (!offsets.isEmpty()) {
+                    try {
+                        input.commitSync(offsets, Duration.ofSeconds(10));
+                    } catch (RuntimeException e) {
+                        log.error("Final offset commit failed: topic={}", config.topic(), e);
+                    }
+                }
             }
         } catch (RuntimeException e) {
             log.error("Consumer stopped; failed record remains uncommitted: topic={}", config.topic(), e);
-            throw e;
         } finally {
             stopped.countDown();
         }

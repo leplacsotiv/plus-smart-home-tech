@@ -9,8 +9,7 @@ public class ConditionEvaluator {
     public boolean matches(Condition condition, SensorsSnapshotAvro snapshot) {
         var state = snapshot.getSensorsState().get(condition.getSensor().getDeviceId());
         if (state == null || condition.getValue() == null) return false;
-        Integer actual = value(condition.getType(), state.getData());
-        if (actual == null) return false;
+        int actual = value(condition.getType(), state.getData());
         int comparison = Integer.compare(actual, condition.getValue());
         return switch (condition.getOperation()) {
             case EQUALS -> comparison == 0;
@@ -19,18 +18,29 @@ public class ConditionEvaluator {
         };
     }
 
-    private Integer value(ConditionTypeAvro type, Object payload) {
+    private int value(ConditionTypeAvro type, Object payload) {
         return switch (type) {
-            case MOTION -> payload instanceof MotionSensorAvro p ? (p.getMotion() ? 1 : 0) : null;
-            case SWITCH -> payload instanceof SwitchSensorAvro p ? (p.getState() ? 1 : 0) : null;
-            case LUMINOSITY -> payload instanceof LightSensorAvro p ? p.getLuminosity() : null;
+            case MOTION -> requirePayload(type, payload, MotionSensorAvro.class).getMotion() ? 1 : 0;
+            case SWITCH -> requirePayload(type, payload, SwitchSensorAvro.class).getState() ? 1 : 0;
+            case LUMINOSITY -> requirePayload(type, payload, LightSensorAvro.class).getLuminosity();
             case TEMPERATURE -> switch (payload) {
                 case ClimateSensorAvro p -> p.getTemperatureC();
                 case TemperatureSensorAvro p -> p.getTemperatureC();
-                default -> null;
+                case null -> throw incompatiblePayload(type, null);
+                default -> throw incompatiblePayload(type, payload);
             };
-            case CO2LEVEL -> payload instanceof ClimateSensorAvro p ? p.getCo2Level() : null;
-            case HUMIDITY -> payload instanceof ClimateSensorAvro p ? p.getHumidity() : null;
+            case CO2LEVEL -> requirePayload(type, payload, ClimateSensorAvro.class).getCo2Level();
+            case HUMIDITY -> requirePayload(type, payload, ClimateSensorAvro.class).getHumidity();
         };
+    }
+
+    private <T> T requirePayload(ConditionTypeAvro type, Object payload, Class<T> expectedType) {
+        if (expectedType.isInstance(payload)) return expectedType.cast(payload);
+        throw incompatiblePayload(type, payload);
+    }
+
+    private IllegalArgumentException incompatiblePayload(ConditionTypeAvro type, Object payload) {
+        String actualType = payload == null ? "null" : payload.getClass().getSimpleName();
+        return new IllegalArgumentException("Condition " + type + " is incompatible with payload " + actualType);
     }
 }
