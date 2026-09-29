@@ -1,0 +1,44 @@
+spring:
+  application.name: analyzer
+  main.web-application-type: none
+  datasource:
+    url: ${ANALYZER_DB_URL:jdbc:postgresql://localhost:5432/telemetry_analyzer}
+    username: ${ANALYZER_DB_USER:dbuser}
+    password: ${ANALYZER_DB_PASSWORD:12345}
+  sql.init.mode: always
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+grpc:
+  client:
+    hub-router:
+      address: static://localhost:59090
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
+analyzer:
+  action-timeout: 5s
+  hubs:
+    topic: telemetry.hubs.v1
+    poll-timeout: 250ms
+    consumer:
+      "[bootstrap.servers]": ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      "[group.id]": telemetry-analyzer-hubs
+      "[enable.auto.commit]": false
+      "[auto.offset.reset]": earliest
+      "[max.poll.interval.ms]": 300000
+      "[max.poll.records]": 100
+      "[fetch.max.bytes]": 52428800
+      "[max.partition.fetch.bytes]": 1048576
+  snapshots:
+    topic: telemetry.snapshots.v1
+    poll-timeout: 250ms
+    consumer:
+      "[bootstrap.servers]": ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      "[group.id]": telemetry-analyzer-snapshots
+      "[enable.auto.commit]": false
+      "[auto.offset.reset]": earliest
+      "[max.poll.interval.ms]": 300000
+      "[max.poll.records]": 10
+      "[fetch.max.bytes]": 52428800
+      "[max.partition.fetch.bytes]": 1048576
