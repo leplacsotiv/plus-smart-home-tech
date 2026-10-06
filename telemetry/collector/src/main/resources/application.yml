@@ -1,3 +1,8 @@
+spring:
+  application.name: collector
+  main.web-application-type: none
+grpc:
+  server.port: 59091
 collector:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
