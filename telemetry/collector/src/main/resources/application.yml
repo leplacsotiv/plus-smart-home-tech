@@ -1,0 +1,6 @@
+collector:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      sensors: telemetry.sensors.v1
+      hubs: telemetry.hubs.v1
