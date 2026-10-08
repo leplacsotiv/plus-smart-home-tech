@@ -59,9 +59,6 @@ public class ProductService {
     public ProductDto update(Long id, UpdateProductRequest request) {
         Product product = getEntity(id);
         if (request.name() != null) {
-            if (request.name().isBlank()) {
-                throw new IllegalArgumentException("Название товара не может быть пустым");
-            }
             product.setName(request.name());
         }
         if (request.description() != null) {

@@ -11,6 +11,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,6 +22,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "customer_orders")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CustomerOrder {
 
     @Id
@@ -46,10 +51,8 @@ public class CustomerOrder {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
+    @Getter(AccessLevel.NONE)
     private final List<OrderItem> items = new ArrayList<>();
-
-    protected CustomerOrder() {
-    }
 
     public CustomerOrder(String customerName, String customerEmail, BigDecimal totalPrice, LocalDateTime createdAt) {
         this.customerName = customerName;
@@ -62,34 +65,6 @@ public class CustomerOrder {
     public void addItem(OrderItem item) {
         items.add(item);
         item.attachTo(this);
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public String getCustomerEmail() {
-        return customerEmail;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public BigDecimal getTotalPrice() {
-        return totalPrice;
-    }
-
-    public String getStatusDetails() {
-        return statusDetails;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 
     public List<OrderItem> getItems() {

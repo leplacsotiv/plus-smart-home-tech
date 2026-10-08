@@ -8,11 +8,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.Check;
 
 @Entity
 @Table(name = "inventory", uniqueConstraints = @UniqueConstraint(name = "uk_inventory_product", columnNames = "product_id"))
 @Check(constraints = "quantity >= 0 and reserved_quantity >= 0 and reserved_quantity <= quantity")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Inventory {
 
     @Id
@@ -23,6 +29,7 @@ public class Inventory {
     private Long productId;
 
     @Column(nullable = false)
+    @Setter
     private int quantity;
 
     @Column(name = "reserved_quantity", nullable = false)
@@ -31,32 +38,9 @@ public class Inventory {
     @Version
     private Long version;
 
-    protected Inventory() {
-    }
-
     public Inventory(Long productId, int quantity) {
         this.productId = productId;
         this.quantity = quantity;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
-
-    public int getReservedQuantity() {
-        return reservedQuantity;
     }
 
     public void reserve(int quantity) {

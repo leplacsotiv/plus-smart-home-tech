@@ -9,11 +9,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "products")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Product {
 
     @Id
@@ -21,26 +27,29 @@ public class Product {
     private Long id;
 
     @Column(nullable = false, length = 255)
+    @Setter
     private String name;
 
     @Column(length = 2000)
+    @Setter
     private String description;
 
     @Column(nullable = false, precision = 19, scale = 2)
+    @Setter
     private BigDecimal price;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
+    @Setter
     private Category category;
 
     @Column(name = "image_url", length = 2000)
+    @Setter
     private String imageUrl;
 
     @Column(nullable = false)
+    @Setter
     private boolean active = true;
-
-    protected Product() {
-    }
 
     public Product(String name, String description, BigDecimal price, Category category, String imageUrl) {
         this.name = name;
@@ -48,57 +57,5 @@ public class Product {
         this.price = price;
         this.category = category;
         this.imageUrl = imageUrl;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
-
-    public Category getCategory() {
-        return category;
-    }
-
-    public void setCategory(Category category) {
-        this.category = category;
-    }
-
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
     }
 }
