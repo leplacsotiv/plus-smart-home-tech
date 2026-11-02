@@ -47,6 +47,15 @@ public class Inventory {
         this.reservedQuantity += quantity;
     }
 
+    public void release(int quantity) {
+        if (quantity <= 0 || quantity > reservedQuantity) {
+            throw new IllegalArgumentException(
+                    "Некорректное количество для снятия резерва"
+            );
+        }
+        reservedQuantity -= quantity;
+    }
+
     public int getAvailableQuantity() {
         return quantity - reservedQuantity;
     }

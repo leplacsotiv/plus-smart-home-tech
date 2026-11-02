@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.inventory.dto.InventoryDto;
 import ru.yandex.practicum.inventory.dto.ReserveRequest;
 import ru.yandex.practicum.inventory.dto.ReserveResponse;
+import ru.yandex.practicum.inventory.dto.ReleaseRequest;
 import ru.yandex.practicum.inventory.dto.UpdateInventoryRequest;
 import ru.yandex.practicum.inventory.entity.Inventory;
 import ru.yandex.practicum.inventory.exception.ConflictException;
@@ -62,6 +63,20 @@ public class InventoryService {
         inventory.reserve(request.quantity());
         repository.flush();
         return new ReserveResponse(true, inventory.getAvailableQuantity(), "Товар успешно зарезервирован");
+    }
+
+    @Transactional
+    public ReserveResponse release(ReleaseRequest request) {
+        Inventory inventory = getEntity(request.productId());
+
+        inventory.release(request.quantity());
+        repository.flush();
+
+        return new ReserveResponse(
+                true,
+                inventory.getAvailableQuantity(),
+                "Резерв успешно снят"
+        );
     }
 
     private Inventory getEntity(Long productId) {
