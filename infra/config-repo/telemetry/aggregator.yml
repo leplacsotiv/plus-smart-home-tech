@@ -1,0 +1,24 @@
+spring:
+  main:
+    web-application-type: none
+
+aggregator:
+  input-topic: telemetry.sensors.v1
+  output-topic: telemetry.snapshots.v1
+  poll-timeout: 500ms
+  consumer:
+    "[bootstrap.servers]": ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    "[group.id]": telemetry-aggregator
+    "[enable.auto.commit]": false
+    "[auto.offset.reset]": earliest
+    "[max.poll.interval.ms]": 300000
+    "[max.poll.records]": 100
+    "[fetch.max.bytes]": 52428800
+    "[max.partition.fetch.bytes]": 1048576
+  producer:
+    "[bootstrap.servers]": ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    "[acks]": all
+    "[enable.idempotence]": true
+    "[delivery.timeout.ms]": 10000
+    "[request.timeout.ms]": 5000
+    "[max.block.ms]": 10000

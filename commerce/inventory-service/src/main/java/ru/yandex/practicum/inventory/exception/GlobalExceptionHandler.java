@@ -3,7 +3,8 @@ package ru.yandex.practicum.inventory.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -31,13 +32,27 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(HttpStatus.CONFLICT.value(), e.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleConflict(ConflictException e) {
+        log.warn("Конфликт складской операции: {}", e.getMessage());
+        return new ErrorResponse(HttpStatus.CONFLICT.value(), e.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDataIntegrity(DataIntegrityViolationException e) {
+        log.warn("Конфликт целостности складских данных: {}", e.getMostSpecificCause().getMessage());
+        return new ErrorResponse(HttpStatus.CONFLICT.value(), "Складская запись для товара уже существует");
+    }
+
     /**
      * Конфликт оптимистичной блокировки: два запроса одновременно изменили одну запись.
      * Клиент должен повторить запрос.
      */
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ExceptionHandler(OptimisticLockingFailureException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleOptimisticLock(ObjectOptimisticLockingFailureException e) {
+    public ErrorResponse handleOptimisticLock(OptimisticLockingFailureException e) {
         log.warn("Конфликт конкурентного доступа: {}", e.getMessage());
         return new ErrorResponse(HttpStatus.CONFLICT.value(),
                 "Конфликт конкурентного доступа. Данные были изменены другим запросом. Повторите операцию.");
