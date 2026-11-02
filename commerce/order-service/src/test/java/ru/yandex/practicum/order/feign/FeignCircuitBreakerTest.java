@@ -83,6 +83,9 @@ class FeignCircuitBreakerTest {
         assertThat(properties.getConfig().get("default").getReadTimeout()).isEqualTo(2000);
         assertThat(sourceHeader.get()).isEqualTo("order-service");
         assertThatThrownBy(() -> products.getProductById(1L)).isInstanceOf(DependencyUnavailableException.class);
+        var pending = orchestration.create(new CreateOrderRequest("Buyer", "open@example.com",
+                List.of(new OrderItemRequest(1L, 1))));
+        assertThat(pending.status()).isEqualTo("PENDING_CONFIRMATION");
         assertThat(calls.get()).isEqualTo(5);
     }
 

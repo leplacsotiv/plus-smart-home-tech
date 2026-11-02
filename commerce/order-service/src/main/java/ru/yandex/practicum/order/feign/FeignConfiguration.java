@@ -1,5 +1,6 @@
 package ru.yandex.practicum.order.feign;
 
+import feign.FeignException;
 import feign.RequestInterceptor;
 import feign.Retryer;
 import feign.codec.ErrorDecoder;
@@ -23,7 +24,8 @@ public class FeignConfiguration {
     @Bean
     ErrorDecoder errorDecoder() {
         return (methodKey, response) -> RemoteCallFailures.httpFailure(
-                methodKey.startsWith("ProductClient") ? "Каталог" : "Склад", response.status(), null);
+                methodKey.startsWith("ProductClient") ? "Каталог" : "Склад", response.status(),
+                FeignException.errorStatus(methodKey, response));
     }
 
     @Bean
