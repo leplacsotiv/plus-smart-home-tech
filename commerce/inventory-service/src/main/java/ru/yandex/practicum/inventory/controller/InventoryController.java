@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.inventory.dto.InventoryDto;
 import ru.yandex.practicum.inventory.dto.ReserveRequest;
 import ru.yandex.practicum.inventory.dto.ReserveResponse;
+import ru.yandex.practicum.inventory.dto.ReleaseRequest;
 import ru.yandex.practicum.inventory.dto.UpdateInventoryRequest;
 import ru.yandex.practicum.inventory.service.InventoryService;
 
@@ -52,5 +53,10 @@ public class InventoryController {
     @PostMapping("/reserve")
     public ReserveResponse reserve(@Valid @RequestBody ReserveRequest request) {
         return service.reserve(request);
+    }
+
+    @PostMapping("/release")
+    public ReserveResponse release(@Valid @RequestBody ReleaseRequest request) {
+        return service.release(request);
     }
 }

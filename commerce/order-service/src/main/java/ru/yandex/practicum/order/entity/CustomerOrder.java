@@ -62,6 +62,10 @@ public class CustomerOrder {
         this.status = OrderStatus.CREATED;
     }
 
+    public void confirm() {
+        this.status = OrderStatus.CONFIRMED;
+    }
+
     public void addItem(OrderItem item) {
         items.add(item);
         item.attachTo(this);

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.order.dto.CreateOrderRequest;
 import ru.yandex.practicum.order.dto.OrderDto;
 import ru.yandex.practicum.order.service.OrderService;
+import ru.yandex.practicum.order.service.OrderOrchestrationService;
 
 import java.util.List;
 
@@ -21,15 +22,17 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService service;
+    private final OrderOrchestrationService orchestration;
 
-    public OrderController(OrderService service) {
+    public OrderController(OrderService service, OrderOrchestrationService orchestration) {
         this.service = service;
+        this.orchestration = orchestration;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderDto create(@Valid @RequestBody CreateOrderRequest request) {
-        return service.create(request);
+        return orchestration.create(request);
     }
 
     @GetMapping("/{id}")
