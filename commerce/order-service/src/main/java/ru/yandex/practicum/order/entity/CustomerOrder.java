@@ -66,6 +66,11 @@ public class CustomerOrder {
         this.status = OrderStatus.CONFIRMED;
     }
 
+    public void awaitConfirmation(String details) {
+        this.status = OrderStatus.PENDING_CONFIRMATION;
+        this.statusDetails = details;
+    }
+
     public void addItem(OrderItem item) {
         items.add(item);
         item.attachTo(this);

@@ -24,13 +24,26 @@ public class OrderService {
 
     @Transactional
     public OrderDto saveConfirmed(OrderDraft draft) {
+        return save(draft, null);
+    }
+
+    @Transactional
+    public OrderDto savePending(OrderDraft draft, String details) {
+        return save(draft, details);
+    }
+
+    private OrderDto save(OrderDraft draft, String pendingDetails) {
         BigDecimal totalPrice = draft.items().stream()
                 .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         CustomerOrder order = new CustomerOrder(
                 draft.customerName(), draft.customerEmail(), totalPrice, LocalDateTime.now());
-        order.confirm();
+        if (pendingDetails == null) {
+            order.confirm();
+        } else {
+            order.awaitConfirmation(pendingDetails);
+        }
 
         draft.items().forEach(item -> order.addItem(new OrderItem(
                 item.productId(), item.productName(), item.quantity(), item.price())));

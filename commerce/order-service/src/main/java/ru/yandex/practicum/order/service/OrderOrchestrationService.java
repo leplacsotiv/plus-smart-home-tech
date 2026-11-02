@@ -7,13 +7,16 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.order.dto.CreateOrderRequest;
 import ru.yandex.practicum.order.dto.OrderDto;
 import ru.yandex.practicum.order.exception.OrderProcessingException;
+import ru.yandex.practicum.order.exception.DependencyUnavailableException;
 import ru.yandex.practicum.order.feign.InventoryClient;
 import ru.yandex.practicum.order.feign.ProductClient;
 import ru.yandex.practicum.order.feign.ProductDto;
 import ru.yandex.practicum.order.feign.ReleaseRequest;
 import ru.yandex.practicum.order.feign.ReserveRequest;
 import ru.yandex.practicum.order.feign.ReserveResponse;
+import ru.yandex.practicum.order.feign.RemoteCallFailures;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +42,16 @@ public class OrderOrchestrationService {
 
         // Сначала проверяем ВСЕ товары: при ошибке не понадобится отменять резервы.
         Map<Long, ProductDto> catalog = new LinkedHashMap<>();
+        boolean catalogUnavailable = false;
         for (Long productId : quantities.keySet()) {
-            catalog.put(productId, loadProduct(productId));
+            try {
+                catalog.put(productId, loadProduct(productId));
+            } catch (DependencyUnavailableException error) {
+                catalogUnavailable = true;
+                catalog.put(productId, new ProductDto(productId,
+                        "Товар #" + productId + " (ожидает проверки)", BigDecimal.ZERO, null));
+                log.warn("Товар {} ожидает проверки каталога", productId, error);
+            }
         }
 
         // Сохраняем строки из исходного заказа, резервируем суммарно по productId.
@@ -51,6 +62,11 @@ public class OrderOrchestrationService {
                             item.quantity(), product.price());
                 })
                 .toList();
+        OrderDraft draft = new OrderDraft(request.customerName(), request.customerEmail(), lines);
+        if (catalogUnavailable) {
+            return orders.savePending(draft,
+                    "Каталог временно недоступен. Требуется проверка товаров и цен; резервирование не выполнялось.");
+        }
 
         List<ReserveRequest> confirmedReserves = new ArrayList<>();
         try {
@@ -61,8 +77,13 @@ public class OrderOrchestrationService {
             }
 
             // Единственная локальная DB-транзакция — внутри другого Spring-бина.
-            return orders.saveConfirmed(new OrderDraft(
-                    request.customerName(), request.customerEmail(), lines));
+            return orders.saveConfirmed(draft);
+        } catch (DependencyUnavailableException error) {
+            log.warn("Результат обращения к складу может быть неизвестен; заказ требует проверки", error);
+            releaseConfirmedReserves(confirmedReserves);
+            return orders.savePending(draft,
+                    "Склад временно недоступен. Результат последней операции может быть неизвестен. "
+                            + "Для известных резервов выполнена best-effort отмена. Требуется проверка резервов.");
         } catch (RuntimeException error) {
             releaseConfirmedReserves(confirmedReserves);
             throw error;
@@ -74,10 +95,7 @@ public class OrderOrchestrationService {
         try {
             product = products.getProductById(id);
         } catch (FeignException e) {
-            if (e.status() == 404) {
-                throw new OrderProcessingException("Товар " + id + " не найден", e);
-            }
-            throw new OrderProcessingException("Не удалось получить товар " + id, e);
+            throw RemoteCallFailures.translate("Каталог", e);
         }
         if (product == null || product.id() == null || !id.equals(product.id())) {
             throw new OrderProcessingException("Каталог вернул некорректные данные товара " + id);
@@ -97,14 +115,10 @@ public class OrderOrchestrationService {
         try {
             result = inventory.reserveStock(request);
         } catch (FeignException e) {
-            String reason = switch (e.status()) {
-                case 404 -> "Нет складской записи для товара " + request.productId();
-                case 409 -> "Недостаточно товара " + request.productId() + " на складе";
-                default -> "Не удалось зарезервировать товар " + request.productId();
-            };
-            throw new OrderProcessingException(reason, e);
+            throw RemoteCallFailures.translate("Склад", e);
         }
-        if (result == null || !result.success() || result.availableQuantity() < 0) {
+        if (result == null || !result.success() || result.availableQuantity() == null
+                || result.availableQuantity() < 0) {
             throw new OrderProcessingException(
                     "Склад не подтвердил резервирование товара " + request.productId());
         }
