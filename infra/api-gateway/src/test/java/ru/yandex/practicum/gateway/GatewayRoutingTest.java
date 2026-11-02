@@ -36,7 +36,8 @@ class GatewayRoutingTest {
 
     @BeforeEach
     void reset() {
-        client = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:" + port).build();
+        client = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:" + port)
+                .defaultHeaders(headers -> headers.setBasicAuth("anna", "anna")).build();
         calls.set(0);
         backendStatus.set(200);
     }
@@ -53,7 +54,7 @@ class GatewayRoutingTest {
                     .expectBody(String.class).isEqualTo(route);
         }
         assertThat(calls.get()).isEqualTo(4);
-        client.get().uri("/internal/unknown").exchange().expectStatus().isNotFound();
+        client.get().uri("/internal/unknown").exchange().expectStatus().isForbidden();
         assertThat(calls.get()).isEqualTo(4);
     }
 
