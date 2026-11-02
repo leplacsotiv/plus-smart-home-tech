@@ -2,10 +2,8 @@ package ru.yandex.practicum.order.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.yandex.practicum.order.dto.CreateOrderRequest;
 import ru.yandex.practicum.order.dto.OrderDto;
 import ru.yandex.practicum.order.dto.OrderItemDto;
-import ru.yandex.practicum.order.dto.OrderItemRequest;
 import ru.yandex.practicum.order.entity.CustomerOrder;
 import ru.yandex.practicum.order.entity.OrderItem;
 import ru.yandex.practicum.order.exception.NotFoundException;
@@ -25,15 +23,30 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderDto create(CreateOrderRequest request) {
-        BigDecimal totalPrice = request.items().stream()
-                .map(this::lineTotal)
+    public OrderDto saveConfirmed(OrderDraft draft) {
+        return save(draft, null);
+    }
+
+    @Transactional
+    public OrderDto savePending(OrderDraft draft, String details) {
+        return save(draft, details);
+    }
+
+    private OrderDto save(OrderDraft draft, String pendingDetails) {
+        BigDecimal totalPrice = draft.items().stream()
+                .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        CustomerOrder order = new CustomerOrder(request.customerName(), request.customerEmail(), totalPrice,
-                LocalDateTime.now());
-        request.items().stream()
-                .map(item -> new OrderItem(item.productId(), item.productName(), item.quantity(), item.price()))
-                .forEach(order::addItem);
+
+        CustomerOrder order = new CustomerOrder(
+                draft.customerName(), draft.customerEmail(), totalPrice, LocalDateTime.now());
+        if (pendingDetails == null) {
+            order.confirm();
+        } else {
+            order.awaitConfirmation(pendingDetails);
+        }
+
+        draft.items().forEach(item -> order.addItem(new OrderItem(
+                item.productId(), item.productName(), item.quantity(), item.price())));
         return toDto(repository.saveAndFlush(order));
     }
 
@@ -52,10 +65,6 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<OrderDto> findByEmail(String email) {
         return toDto(repository.findAllByCustomerEmailOrderByCreatedAtDesc(email));
-    }
-
-    private BigDecimal lineTotal(OrderItemRequest item) {
-        return item.price().multiply(BigDecimal.valueOf(item.quantity()));
     }
 
     private List<OrderDto> toDto(List<CustomerOrder> orders) {
