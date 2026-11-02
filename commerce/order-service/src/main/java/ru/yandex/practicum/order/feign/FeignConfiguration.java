@@ -2,6 +2,8 @@ package ru.yandex.practicum.order.feign;
 
 import feign.RequestInterceptor;
 import feign.Retryer;
+import feign.codec.ErrorDecoder;
+import org.springframework.cloud.openfeign.CircuitBreakerNameResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,5 +18,16 @@ public class FeignConfiguration {
     @Bean
     Retryer retryer() {
         return Retryer.NEVER_RETRY;
+    }
+
+    @Bean
+    ErrorDecoder errorDecoder() {
+        return (methodKey, response) -> RemoteCallFailures.httpFailure(
+                methodKey.startsWith("ProductClient") ? "Каталог" : "Склад", response.status(), null);
+    }
+
+    @Bean
+    CircuitBreakerNameResolver circuitBreakerNameResolver() {
+        return (clientName, target, method) -> target.type().getSimpleName() + method.getName();
     }
 }

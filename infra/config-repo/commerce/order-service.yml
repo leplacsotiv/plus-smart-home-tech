@@ -7,6 +7,8 @@ spring:
       retry:
         enabled: false
     openfeign:
+      circuitbreaker:
+        enabled: true
       client:
         config:
           default:
@@ -32,3 +34,19 @@ spring:
 logging:
   level:
     ru.yandex.practicum.order.feign.ProductClient: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 5
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        ignore-exceptions:
+          - ru.yandex.practicum.order.exception.OrderProcessingException
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s

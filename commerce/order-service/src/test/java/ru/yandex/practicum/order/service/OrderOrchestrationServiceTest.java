@@ -5,9 +5,13 @@ import feign.Request;
 import feign.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import ru.yandex.practicum.order.dto.CreateOrderRequest;
 import ru.yandex.practicum.order.dto.OrderItemRequest;
 import ru.yandex.practicum.order.exception.OrderProcessingException;
+import ru.yandex.practicum.order.exception.DependencyUnavailableException;
 import ru.yandex.practicum.order.feign.*;
 
 import java.math.BigDecimal;
@@ -19,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(OutputCaptureExtension.class)
 class OrderOrchestrationServiceTest {
     private ProductClient products;
     private InventoryClient inventory;
@@ -120,13 +125,53 @@ class OrderOrchestrationServiceTest {
     }
 
     @Test
-    void failedCompensationDoesNotReplaceOriginalFailure() {
+    void failedCompensationDoesNotReplaceOriginalFailure(CapturedOutput output) {
         when(products.getProductById(1L)).thenReturn(product(1L, true));
         when(inventory.reserveStock(any())).thenReturn(new ReserveResponse(true, 1, "OK"));
         var original = new IllegalStateException("DB failed");
         when(orders.saveConfirmed(any())).thenThrow(original);
         when(inventory.releaseStock(any())).thenThrow(new IllegalStateException("release failed"));
         assertThatThrownBy(() -> orchestration.create(request(item(1L, 1)))).isSameAs(original);
+        assertThat(output).contains("Не удалось снять резерв товара 1");
+    }
+
+    @Test
+    void unavailableCatalogCreatesPendingWithoutReservations() {
+        when(products.getProductById(1L)).thenThrow(remoteError(503));
+        orchestration.create(request(item(1L, 2)));
+        var draft = org.mockito.ArgumentCaptor.forClass(OrderDraft.class);
+        verify(orders).savePending(draft.capture(), contains("Каталог"));
+        assertThat(draft.getValue().items().getFirst().price()).isEqualByComparingTo("0");
+        assertThat(draft.getValue().items().getFirst().productName()).contains("#1", "ожидает проверки");
+        verifyNoInteractions(inventory);
+        verify(orders, never()).saveConfirmed(any());
+    }
+
+    @Test
+    void unavailableInventoryCompensatesAndKeepsKnownCatalogSnapshot() {
+        when(products.getProductById(1L)).thenReturn(product(1L, true));
+        when(products.getProductById(2L)).thenReturn(product(2L, true));
+        when(inventory.reserveStock(new ReserveRequest(1L, 1)))
+                .thenReturn(new ReserveResponse(true, 1, "OK"));
+        when(inventory.reserveStock(new ReserveRequest(2L, 1)))
+                .thenThrow(new DependencyUnavailableException("timeout", null));
+        orchestration.create(request(item(1L, 1), item(2L, 1)));
+        verify(inventory).releaseStock(new ReleaseRequest(1L, 1));
+        verify(inventory, never()).releaseStock(new ReleaseRequest(2L, 1));
+        var draft = org.mockito.ArgumentCaptor.forClass(OrderDraft.class);
+        verify(orders).savePending(draft.capture(), contains("неизвестен"));
+        assertThat(draft.getValue().items()).allSatisfy(line ->
+                assertThat(line.price()).isEqualByComparingTo("1490.00"));
+        verify(orders, never()).saveConfirmed(any());
+    }
+
+    @Test
+    void knownMissingProductStillRejectsOrderWhenAnotherProductIsUnavailable() {
+        when(products.getProductById(1L)).thenThrow(remoteError(503));
+        when(products.getProductById(2L)).thenThrow(remoteError(404));
+        assertThatThrownBy(() -> orchestration.create(request(item(1L, 1), item(2L, 1))))
+                .isInstanceOf(OrderProcessingException.class);
+        verifyNoInteractions(inventory, orders);
     }
 
     private static FeignException remoteError(int status) {
